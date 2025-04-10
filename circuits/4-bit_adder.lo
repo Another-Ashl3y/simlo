@@ -1,0 +1,38 @@
+#4-bit_adder
+Input[]A0
+Input[]B0
+Buffer[]
+Xor[0, 1]
+Xor[3, 2]SUM
+And[3, 2]
+And[0, 1]
+Or[5, 6]Cout
+Input[]A1
+Input[]B1
+Buffer[7]
+Xor[8, 9]
+Xor[11, 10]SUM
+And[11, 10]
+And[8, 9]
+Or[13, 14]Cout
+Input[]A2
+Input[]B2
+Buffer[15]
+Xor[16, 17]
+Xor[19, 18]SUM
+And[19, 18]
+And[16, 17]
+Or[21, 22]Cout
+Input[]A3
+Input[]B3
+Buffer[23]
+Xor[24, 25]
+Xor[27, 26]SUM
+And[27, 26]
+And[24, 25]
+Or[29, 30]Cout
+Output[4]Q0
+Output[12]Q1
+Output[20]Q2
+Output[28]Q3
+Output[31]QC

@@ -1,0 +1,9 @@
+#Full Adder
+Input[]A
+Input[]B
+Input[]Cin
+Xor[0, 1]
+Xor[3, 2]SUM
+And[3, 2]
+And[0, 1]
+Or[5, 6]Cout
