@@ -20,6 +20,7 @@ const EDITCOMPONENTCODE: &str = "EDIT";
 const NAMECIRCUITCODE: &str = "NAME";
 const SAVECIRCUITCODE: &str = "SAVE";
 const LOADCIRCUITCODE: &str = "LOAD";
+const LOADICCODE: &str = "IC";
 
 const ENDPOINT: u8 = ';' as u8;
 const WHITESPACE: u8 = ' ' as u8;
@@ -38,16 +39,16 @@ fn create_circuit(id: &mut u32, catalogue: &mut Vec<Circuit>) {
         circuit.step();
 
         let command = input(&format!("{}>", circuit.id));
-        if command == String::from("HLT") {
+        if command == "HLT" {
             break 'game;
         }
-        if command == String::from("DISPLAY") {
+        if command == "DISPLAY" {
             circuit.display();
         }
-        if command == String::from("DISPLIO") {
+        if command == "DISPLIO" {
             circuit.displio();
         }
-        if command == String::from("CATALOGUE") {
+        if command == "CATALOGUE" {
             for c in catalogue.iter() {
                 if let Some(name) = &c.name {
                     println!("[{}] {} - {} Gates(s)", c.id, name, c.gates.len())
@@ -57,20 +58,20 @@ fn create_circuit(id: &mut u32, catalogue: &mut Vec<Circuit>) {
                 }
             }
         }
-        if command == String::from("HELP") {
-            println!("DEL [id..]\t - Deletes the given components");
-            println!("SET [id..] (TRUE/FALSE)\t - Sets the state of the given components");
-            println!("NEW\t - Starts a new circuit");
-            println!("COMPILE\t - Adds the circuit to the catalogue");
-            println!("IMPORT [id]\t - Adds a circuit to the current circuit");
-            println!("EDIT [id] [Gate Type] [id...]; [Label]\t - Swaps components with a new one");
-            println!("NAME [name]\t - Sets the name of the circuit");
-            println!("SAVE [file path]\t - Saves a circuit to the given location");
-            println!("LOAD [file path]\t - Loads the circuit from a file into the catalogue");
-            println!("HLT\t - Quits the current circuit and goes back to the previous one");
-            println!("DISPLAY\t - Shows the status of all the gates in the circuit");
-            println!("DISPLIO\t - Shows the status of all the input and output components in the circuit");
-            println!("CATALOGUE\t - Shows the circuits in the catalogue");
+        if command == "HELP" {
+            println!("DEL [id..]                             - Deletes the given components");
+            println!("SET [id..] (TRUE/FALSE)                - Sets the state of the given components");
+            println!("NEW                                    - Starts a new circuit");
+            println!("COMPILE                                - Adds the circuit to the catalogue");
+            println!("IMPORT [id]                            - Adds a circuit to the current circuit");
+            println!("EDIT [id] [Gate Type] [id...]; [Label] - Swaps components with a new one");
+            println!("NAME [name]                            - Sets the name of the circuit");
+            println!("SAVE [file path]                       - Saves a circuit to the given location");
+            println!("LOAD [file path]                       - Loads the circuit from a file into the catalogue");
+            println!("HLT                                    - Quits the current circuit and goes back to the previous one");
+            println!("DISPLAY                                - Shows the status of all the gates in the circuit");
+            println!("DISPLIO                                - Shows the status of all the input and output components in the circuit");
+            println!("CATALOGUE                              - Shows the circuits in the catalogue");
         }
 
 
@@ -233,6 +234,20 @@ fn create_circuit(id: &mut u32, catalogue: &mut Vec<Circuit>) {
                         println!("Changed name of current circuit to {}", name);
                     }
                 }
+                else if t == LOADICCODE {
+                    let word = sentence.remove(0);
+                    if let Ok(s) = String::from_utf8(word.to_vec()) {
+                        if let Ok(id) = u32::from_str_radix(&s, 10) {
+                            
+                            for item in catalogue.iter() {
+                                if item.id == id {
+                                    circuit.add_intergrated_circuit(item.clone(), Vec::new(), Vec::new());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
                 else {
                     let new_gate = parse_gate(t, sentence, note);
                     if let Some(gate) = new_gate {
@@ -261,7 +276,7 @@ fn parse_gate(gate_key: String, sentence: Vec<Vec<u8>>, note: Vec<Vec<u8>>) -> O
     else if gate_key == OUTPUTCODE { gate_type = Some(GateType::Output) }
     else if gate_key == BUFFERCODE { gate_type = Some(GateType::Buffer) }
 
-    
+
 
     if let Some(gate_type) = gate_type {
         let mut inputs: Vec<u32> = Vec::new();
@@ -306,7 +321,7 @@ impl Reader {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum GateType {
     Input,
     Output,
@@ -320,16 +335,18 @@ enum GateType {
     Nxor,
 }
 
-#[derive(Clone)]
+
+#[derive(Clone, Debug, PartialEq)]
 struct Circuit {
     id: u32,
     name: Option<String>,
     id_counter: u32,
     gates: Vec<Gate>,
+    intergrated_circuits: Vec<IC>,
 }
 impl Circuit {
     fn new(id: u32) -> Self {
-        Self { name: Option::None, id, id_counter: 0, gates: Vec::new() }
+        Self { name: Option::None, id, id_counter: 0, gates: Vec::new(), intergrated_circuits: Vec::new() }
     }
     fn add_component(&mut self, gate_type: GateType, input_ids: Vec<u32>, label: Option<String>) {
         let inputs = input_ids.iter().map(|id| {return (self.gates.len(), *id)}).collect();
@@ -350,6 +367,9 @@ impl Circuit {
                         updated_inputs[i] = (test_index, previous_state[test_index].id);
                         break
                     }
+                    else if test_index == 0 {
+                        updated_inputs[i] = (test_index, previous_state.len() as u32 - 1);
+                    }
                 }
             }
 
@@ -357,6 +377,9 @@ impl Circuit {
             gate.update_state(new_state);
 
             gate.inputs = updated_inputs;
+        }
+        for ic in self.intergrated_circuits.iter_mut() {
+
         }
     }
     fn set_component(&mut self, id: u32, state: bool) -> bool {
@@ -542,9 +565,33 @@ impl Circuit {
 
         Ok(())
     }
+    fn add_intergrated_circuit(&mut self, circuit: Circuit, input_ids: Vec<u32>, output_ids: Vec<u32>) {
+        let mut complete_inputs = Vec::new();
+        let mut complete_outputs = Vec::new();
+        for (i, internal_id) in input_ids.iter().enumerate() {
+            self.add_component(
+                GateType::Buffer, 
+                Vec::new(), 
+                Some(if let Some(n) = circuit.name.clone() {format!("IC INPUT {} {}", i, n)} else {format!("IC INPUT {}", i)}));
+            let last_index = self.gates.len() - 1;
+            let external_id = self.gates[last_index].id;
+            complete_inputs.push([(self.gates.len(), external_id), (circuit.gates.len(), *internal_id)]);
+        }
+        for (i, internal_id) in output_ids.iter().enumerate() {
+            self.add_component(
+                GateType::Buffer, 
+                Vec::new(), 
+                Some(if let Some(n) = circuit.name.clone() {format!("IC OUTPUT {} FOR {}", i, n)} else {format!("IC OUTPUT {}", i)}));
+            let last_index = self.gates.len() - 1;
+            let external_id = self.gates[last_index].id;
+            complete_outputs.push([(self.gates.len(), external_id), (circuit.gates.len(), *internal_id)]);
+        }
+        let new_ic = IC::new(circuit, complete_inputs, complete_outputs);
+        self.intergrated_circuits.push(new_ic);
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct Gate {
     state: bool,
     label: Option<String>,
@@ -576,7 +623,7 @@ impl Gate {
         self.state = new_state;
     }
     fn data(&self) -> (GateType, Vec<u32>, Option<String>) {
-        (self.gate_type, self.inputs.iter().map(|i| i.1).collect(), self.label.clone())
+        (self.gate_type.clone(), self.inputs.iter().map(|i| i.1).collect(), self.label.clone())
     }
 }
 
@@ -624,3 +671,15 @@ impl Display for Gate {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct IC {
+    circuit: Circuit,
+    inputs: Vec<[(usize, u32); 2]>,    // External, Internal
+    outputs: Vec<[(usize, u32); 2]>,            // External, Internal
+}
+
+impl IC {
+    fn new (circuit: Circuit, inputs: Vec<[(usize, u32); 2]>, outputs: Vec<[(usize, u32); 2]>) -> Self {
+        Self { circuit, inputs, outputs }
+    }
+}
